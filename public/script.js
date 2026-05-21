@@ -1,6 +1,6 @@
 const app = document.getElementById("app");
 
-const SECRET_PASSWORD = "pookie123";
+const SECRET_PASSWORD = "Olami_Is_Pretty";
 
 function login() {
   const password = document.getElementById("password").value;
