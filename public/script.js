@@ -109,14 +109,25 @@ function finalLovePage() {
       <h1 class="final-title">I Love You So Much ❤️</h1>
 
       <div class="photo-box">
-        <img src="public/love.JPEG" class="love-photo" alt="Want me to add your pic babe?">
+        <img src="babyyyy.jpeg" class="love-photo" alt="olami is pretty asf">
       </div>
 
       <p class="love-letter">
-        I was bored yesterday, Mi 🤭❤️, so I decided to make this little page for you. It's not much, but I wanted to do something that would make you smile, because seeing you happy always makes my day better. 🥺❤️
+        My love ❤️,
+
+If there's one thing I hope you never doubt, it's how much you mean to me. You have become one of the most beautiful parts of my life, and every day I'm grateful that I get to know you, talk to you, laugh with you, and love you.
+
+You bring a kind of happiness that I can't really put into words. Even on the most ordinary days, somehow you make everything feel a little brighter. Your smile, your heart, your kindness, and even the little things you do have a way of staying on my mind.
+
+I know I'm not perfect, and I may not always find the right words, but one thing I know for sure is that I care about you deeply. More than you probably realize. You have become my favorite person, my comfort, my peace, and one of the best things that has ever happened to me.
+
+So if you ever wonder what this little page is about, it's simply a reminder that you are loved, appreciated, and incredibly special to me.
+
+I love you, Mi. Today, tomorrow, and every day after that. 🥺❤️
+
       </p>
 
-<button onclick="window.open('https://music.youtube.com/watch?v=8mMWeh42a0o', '_blank')">
+<button onclick="window.open('https://music.youtube.com/watch?v=koHfRN-M9dU&si=ZWLVxXPGY8VUwLhu', '_blank')">
   🎵 Play 
 </button>
 
