@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Memories</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="heartsBg"></div>
+<div id="app">
+  <div id="topbar"></div>
+  <div id="nav"></div>
+
+  <div class="page page-fade">
+    <div class="section-title"><h3>Add a memory</h3></div>
+    <div class="edit-form editOnly hidden">
+      <input type="text" id="newMemTitle" placeholder="Title (e.g. Our first trip)">
+      <input type="date" id="newMemDate">
+      <textarea id="newMemDesc" placeholder="Tell the story..."></textarea>
+      <div class="upload-row">
+        <button class="file-btn" id="pickPhotoBtn" type="button">Add a photo from your phone or laptop</button>
+        <input type="file" id="photoInput" accept="image/*" style="display:none;">
+      </div>
+      <img id="uploadPreview" class="upload-preview">
+      <button class="btn btn-sm" id="addMemBtn">Save memory</button>
+    </div>
+    <div id="memoryList"></div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+let content = null;
+let pendingImageUrl = null;
+
+async function load(){
+  const res = await api('/api/content');
+  content = await res.json();
+}
+async function save(){
+  await api('/api/content', { method: 'POST', body: JSON.stringify(content) });
+}
+
+function renderMemories(){
+  const el = document.getElementById('memoryList');
+  el.innerHTML = '';
+  if(content.memories.length === 0){
+    el.innerHTML = '<div class="empty-note">No memories yet. Add your first one above.</div>';
+    return;
+  }
+  const sorted = content.memories.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  sorted.forEach((m, idx) => {
+    const row = document.createElement('div');
+    row.className = 'memory-item';
+    row.style.animationDelay = (idx * 0.04) + 's';
+    row.innerHTML = '<div style="position:relative;"><div class="memory-dot"></div>' + (idx < sorted.length - 1 ? '<div class="memory-line"></div>' : '') + '</div>' +
+      '<div class="memory-body">' +
+        '<div class="date">' + (m.date ? fmtDate(m.date) : '') + '</div>' +
+        '<h4>' + escapeHtml(m.title) + '</h4>' +
+        '<p>' + escapeHtml(m.description || '') + '</p>' +
+        (m.imageUrl ? '<img src="' + m.imageUrl + '" alt="">' : '') +
+      '</div>';
+    if(window.editMode){
+      const del = document.createElement('button');
+      del.className = 'del-btn'; del.textContent = 'remove';
+      del.onclick = async () => { content.memories = content.memories.filter(x => x.id !== m.id); await save(); renderMemories(); };
+      row.querySelector('.memory-body').appendChild(del);
+    }
+    el.appendChild(row);
+  });
+}
+
+document.getElementById('pickPhotoBtn').addEventListener('click', () => document.getElementById('photoInput').click());
+
+document.getElementById('photoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const btn = document.getElementById('pickPhotoBtn');
+  btn.textContent = 'Uploading...';
+  const formData = new FormData();
+  formData.append('photo', file);
+  try{
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'x-auth-token': getToken() },
+      body: formData
+    });
+    const data = await res.json();
+    if(data.url){
+      pendingImageUrl = data.url;
+      const preview = document.getElementById('uploadPreview');
+      preview.src = data.url;
+      preview.style.display = 'block';
+      btn.textContent = 'Photo added \u2014 tap to change';
+    } else {
+      btn.textContent = 'Upload failed, try again';
+    }
+  }catch(err){
+    btn.textContent = 'Upload failed, try again';
+  }
+});
+
+document.getElementById('addMemBtn').addEventListener('click', async () => {
+  const title = document.getElementById('newMemTitle').value.trim();
+  const date = document.getElementById('newMemDate').value;
+  const description = document.getElementById('newMemDesc').value.trim();
+  if(!title) return;
+  content.memories.push({ id: uid(), title, date, description, imageUrl: pendingImageUrl });
+  await save();
+  document.getElementById('newMemTitle').value = '';
+  document.getElementById('newMemDate').value = '';
+  document.getElementById('newMemDesc').value = '';
+  document.getElementById('photoInput').value = '';
+  document.getElementById('uploadPreview').style.display = 'none';
+  document.getElementById('pickPhotoBtn').textContent = 'Add a photo from your phone or laptop';
+  pendingImageUrl = null;
+  renderMemories();
+  const rect = document.getElementById('addMemBtn').getBoundingClientRect();
+  burstHearts(rect.left, rect.top, 14);
+});
+
+if(requireAuthOrRedirect()){
+  renderChrome('memories');
+  (async () => { await load(); renderMemories(); })();
+}
+</script>
+</body>
+</html>

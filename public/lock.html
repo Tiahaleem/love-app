@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Space</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="heartsBg"></div>
+<div id="app">
+  <div id="lockScreen">
+    <div id="lockView" class="hidden">
+      <div class="lock-icon">&#9825;</div>
+      <h1 id="lockTitle">Welcome back</h1>
+      <p>Enter your secret word to open this.</p>
+      <input type="password" class="lock-input" id="passwordInput" placeholder="secret word" autocomplete="off">
+      <div class="error-msg" id="lockError"></div>
+      <button class="btn" id="unlockBtn">Open</button>
+    </div>
+
+    <div id="setupView" class="hidden">
+      <div class="lock-icon">&#9825;</div>
+      <h1>Let's set this up</h1>
+      <p>A few details, then you can start filling it with love.</p>
+      <div class="setup-form">
+        <label>Your name</label>
+        <input type="text" id="setupHisName" placeholder="Your name">
+        <label>Her name</label>
+        <input type="text" id="setupHerName" placeholder="Her name">
+        <label>Your anniversary or the day you met</label>
+        <input type="date" id="setupAnniversary">
+        <label>Create a secret word (this locks the app)</label>
+        <input type="text" id="setupPassword" placeholder="secret word">
+      </div>
+      <div class="error-msg" id="setupError"></div>
+      <button class="btn" id="setupBtn" style="margin-top:6px;">Create our space</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+initHeartsBg();
+
+async function boot(){
+  try{
+    const r = await fetch('/api/status');
+    const data = await r.json();
+    if(!data.configured){
+      document.getElementById('setupView').classList.remove('hidden');
+    } else {
+      document.getElementById('lockTitle').textContent = 'Welcome back, ' + data.herName;
+      document.getElementById('lockView').classList.remove('hidden');
+    }
+  }catch(e){
+    document.getElementById('lockError').textContent = 'Could not reach the server. Is it running?';
+    document.getElementById('lockView').classList.remove('hidden');
+  }
+}
+
+document.getElementById('setupBtn').addEventListener('click', async () => {
+  const hisName = document.getElementById('setupHisName').value.trim();
+  const herName = document.getElementById('setupHerName').value.trim();
+  const anniversary = document.getElementById('setupAnniversary').value;
+  const password = document.getElementById('setupPassword').value.trim();
+  const err = document.getElementById('setupError');
+  if(!hisName || !herName || !password){
+    err.textContent = 'Please fill in your name, her name, and a secret word.';
+    return;
+  }
+  const r = await fetch('/api/setup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hisName, herName, anniversary, password })
+  });
+  const data = await r.json();
+  if(data.ok){
+    setSession(data.token, data.hisName, data.herName, anniversary);
+    window.location.href = '/index.html';
+  } else {
+    err.textContent = 'Something went wrong. Try again.';
+  }
+});
+
+document.getElementById('unlockBtn').addEventListener('click', tryUnlock);
+document.getElementById('passwordInput').addEventListener('keydown', (e) => { if(e.key === 'Enter') tryUnlock(); });
+
+async function tryUnlock(){
+  const val = document.getElementById('passwordInput').value;
+  const err = document.getElementById('lockError');
+  const r = await fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: val })
+  });
+  const data = await r.json();
+  if(data.ok){
+    err.textContent = '';
+    setSession(data.token, data.hisName, data.herName, data.anniversary);
+    window.location.href = '/index.html';
+  } else {
+    err.textContent = "That's not quite right. Try again.";
+    const card = document.getElementById('lockView');
+    card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

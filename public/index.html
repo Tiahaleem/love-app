@@ -1,41 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Huhu</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Our Space</title>
+<link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <audio id="bgMusic" loop>
-    <source src="music.mp3" type="audio/mpeg">
-  </audio>
+<div id="heartsBg"></div>
+<div id="app">
+  <div id="topbar"></div>
+  <div id="nav"></div>
 
-  <div class="hearts"></div>
-
-<div class="container" id="app">
-
-  <div class="card welcome-card">
-
-      <div class="emoji">
-        ❤️
-      </div>
-
-      <h1>For Mi ❤️</h1>
-
-      <p>
-        Before you continue,
-        I made a little surprise for you 🥺❤️
-      </p>
-
-      <button onclick="showLogin()">
-        Open My Surprise 🎁
-      </button>
-
+  <div class="page page-fade">
+    <div class="hero">
+      <span class="script" id="heroGreeting">Hi</span>
+      <p>Everything I made for you lives here.</p>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card"><div class="num" id="daysTogetherNum">0</div><div class="lbl">days together</div></div>
+      <div class="stat-card"><div class="num" id="memoryCountNum">0</div><div class="lbl">memories saved</div></div>
+      <div class="stat-card"><div class="num" id="reasonCountNum">0</div><div class="lbl">reasons why</div></div>
+    </div>
+    <div class="home-links">
+      <a class="home-link" href="/letters.html"><span class="emoji">&#9993;</span><div class="txt"><b>Today's letter</b><span>Tap the envelope, she can write back</span></div></a>
+      <a class="home-link" href="/memories.html"><span class="emoji">&#128247;</span><div class="txt"><b>Our memories</b><span>A timeline of us</span></div></a>
+      <a class="home-link" href="/reasons.html"><span class="emoji">&#128156;</span><div class="txt"><b>Reasons I love you</b><span>Tap to reveal one</span></div></a>
+      <a class="home-link" href="/countdown.html"><span class="emoji">&#8987;</span><div class="txt"><b>Counting down</b><span>What's coming up</span></div></a>
+      <a class="home-link" href="/bucket.html"><span class="emoji">&#9989;</span><div class="txt"><b>Bucket list</b><span>Things to do together</span></div></a>
+    </div>
   </div>
-
 </div>
 
-  <script src="script.js"></script>
+<script src="/js/app.js"></script>
+<script>
+if(requireAuthOrRedirect()){
+  renderChrome('home');
+  document.getElementById('heroGreeting').textContent = 'Hi ' + getNames().herName;
+
+  (async () => {
+    const anniversary = getNames().anniversary;
+    if(anniversary){
+      const days = Math.floor((new Date() - new Date(anniversary + 'T00:00:00')) / 86400000);
+      document.getElementById('daysTogetherNum').textContent = days >= 0 ? days : 0;
+    }
+    const res = await api('/api/content');
+    const content = await res.json();
+    document.getElementById('memoryCountNum').textContent = content.memories.length;
+    document.getElementById('reasonCountNum').textContent = content.reasons.length;
+  })();
+}
+</script>
 </body>
 </html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Letters</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="heartsBg"></div>
+<div id="app">
+  <div id="topbar"></div>
+  <div id="nav"></div>
+
+  <div class="page page-fade">
+    <div class="envelope-wrap">
+      <div class="envelope" id="envelope">
+        <div class="env-body"></div>
+        <div class="env-letter-peek"></div>
+        <div class="env-flap"></div>
+        <div class="env-seal">&#9825;</div>
+      </div>
+      <div class="env-hint">Tap the envelope to open today's letter</div>
+      <div class="letter-paper" id="letterPaper">
+        <h3 id="letterTitle"></h3>
+        <div id="letterBody"></div>
+        <div class="sign" id="letterSign"></div>
+        <div class="reply-box" id="replyBox">
+          <textarea id="replyText" placeholder="Write back to him..."></textarea>
+          <button class="btn btn-sm" id="sendReplyBtn">Send reply</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title"><h3>Write a new letter</h3></div>
+    <div class="edit-form editOnly hidden">
+      <input type="text" id="newLetterTitle" placeholder="Title (e.g. Just because)">
+      <textarea id="newLetterBody" placeholder="Write what's on your heart..."></textarea>
+      <input type="date" id="newLetterDate">
+      <button class="btn btn-sm" id="addLetterBtn">Save letter</button>
+    </div>
+
+    <div class="section-title"><h3>Our letter history</h3></div>
+    <div id="threadList"></div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+let content = null;
+
+async function load(){
+  const res = await api('/api/content');
+  content = await res.json();
+  content.replies = content.replies || [];
+}
+async function save(){
+  await api('/api/content', { method: 'POST', body: JSON.stringify(content) });
+}
+
+function pickTodaysLetter(){
+  const today = todayStr();
+  const dated = content.letters.find(l => l.date === today);
+  if(dated) return dated;
+  const pool = content.letters.filter(l => !l.date);
+  if(pool.length === 0) return null;
+  const dayNum = Math.floor(new Date().getTime() / 86400000);
+  return pool[dayNum % pool.length];
+}
+
+function typewrite(el, text, speed){
+  el.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'typewrite-cursor';
+  let i = 0;
+  const span = document.createElement('span');
+  el.appendChild(span);
+  el.appendChild(cursor);
+  const iv = setInterval(() => {
+    span.textContent += text.charAt(i);
+    i++;
+    if(i >= text.length){ clearInterval(iv); cursor.remove(); }
+  }, speed || 22);
+}
+
+function renderThread(){
+  const el = document.getElementById('threadList');
+  el.innerHTML = '';
+  if(content.letters.length === 0){
+    el.innerHTML = '<div class="empty-note">No letters yet. Turn on edit mode to write the first one.</div>';
+    return;
+  }
+  const names = getNames();
+  const sorted = content.letters.slice().sort((a,b) => (a.date||'0000').localeCompare(b.date||'0000'));
+  sorted.forEach(l => {
+    const wrap = document.createElement('div');
+    wrap.className = 'thread-item';
+    const hisBubble = document.createElement('div');
+    hisBubble.className = 'bubble his';
+    hisBubble.innerHTML = '<div class="meta">' + (l.date ? fmtDate(l.date) : 'no fixed date') + ' &middot; ' + escapeHtml(names.hisName) + '</div><h4>' + escapeHtml(l.title) + '</h4><div>' + escapeHtml(l.body) + '</div>';
+    if(window.editMode){
+      const del = document.createElement('button');
+      del.className = 'del-btn'; del.textContent = 'remove'; del.style.position='static'; del.style.marginTop='8px';
+      del.onclick = async () => { content.letters = content.letters.filter(x => x.id !== l.id); await save(); renderThread(); };
+      hisBubble.appendChild(del);
+    }
+    wrap.appendChild(hisBubble);
+
+    const replies = content.replies.filter(r => r.letterId === l.id);
+    replies.forEach(r => {
+      const herBubble = document.createElement('div');
+      herBubble.className = 'bubble her';
+      herBubble.style.marginTop = '8px';
+      herBubble.innerHTML = '<div class="meta">' + fmtDateTime(r.createdAt) + ' &middot; ' + escapeHtml(names.herName) + '</div><div>' + escapeHtml(r.text) + '</div>';
+      wrap.appendChild(herBubble);
+    });
+    el.appendChild(wrap);
+  });
+}
+
+function renderEnvelope(){
+  const todays = pickTodaysLetter();
+  document.getElementById('envelope').onclick = () => {
+    const env = document.getElementById('envelope');
+    const paper = document.getElementById('letterPaper');
+    const names = getNames();
+    if(!todays){
+      document.getElementById('letterTitle').textContent = 'Nothing here yet';
+      typewrite(document.getElementById('letterBody'), 'Turn on edit mode and write your first letter.', 20);
+      document.getElementById('letterSign').textContent = '';
+      document.getElementById('replyBox').classList.add('hidden');
+    } else {
+      document.getElementById('letterTitle').textContent = todays.title;
+      typewrite(document.getElementById('letterBody'), todays.body, 18);
+      document.getElementById('letterSign').textContent = '\u2014 ' + names.hisName;
+      document.getElementById('replyBox').classList.remove('hidden');
+      document.getElementById('sendReplyBtn').onclick = async () => {
+        const text = document.getElementById('replyText').value.trim();
+        if(!text) return;
+        await api('/api/reply', { method: 'POST', body: JSON.stringify({ letterId: todays.id, text, author: 'her' }) });
+        document.getElementById('replyText').value = '';
+        await load();
+        renderThread();
+        const rect = document.getElementById('sendReplyBtn').getBoundingClientRect();
+        burstHearts(rect.left, rect.top, 12);
+      };
+    }
+    env.classList.add('open');
+    paper.classList.add('show');
+  };
+}
+
+document.getElementById('addLetterBtn').addEventListener('click', async () => {
+  const title = document.getElementById('newLetterTitle').value.trim();
+  const body = document.getElementById('newLetterBody').value.trim();
+  const date = document.getElementById('newLetterDate').value;
+  if(!title || !body) return;
+  content.letters.push({ id: uid(), title, body, date: date || null });
+  await save();
+  document.getElementById('newLetterTitle').value = '';
+  document.getElementById('newLetterBody').value = '';
+  document.getElementById('newLetterDate').value = '';
+  renderThread();
+  renderEnvelope();
+  const rect = document.getElementById('addLetterBtn').getBoundingClientRect();
+  burstHearts(rect.left, rect.top, 14);
+});
+
+if(requireAuthOrRedirect()){
+  renderChrome('letters');
+  (async () => {
+    await load();
+    renderEnvelope();
+    renderThread();
+  })();
+}
+</script>
+</body>
+</html>

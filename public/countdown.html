@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Countdown</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="heartsBg"></div>
+<div id="app">
+  <div id="topbar"></div>
+  <div id="nav"></div>
+
+  <div class="page page-fade">
+    <div id="countdownList"></div>
+    <div class="section-title"><h3>Add a date to count down to</h3></div>
+    <div class="edit-form editOnly hidden">
+      <input type="text" id="newCdLabel" placeholder="What's the occasion?">
+      <input type="date" id="newCdDate">
+      <button class="btn btn-sm" id="addCdBtn">Add countdown</button>
+    </div>
+  </div>
+</div>
+
+<script src="/js/app.js"></script>
+<script>
+let content = null;
+async function load(){ const res = await api('/api/content'); content = await res.json(); }
+async function save(){ await api('/api/content', { method: 'POST', body: JSON.stringify(content) }); }
+
+function renderCountdowns(){
+  const el = document.getElementById('countdownList');
+  el.innerHTML = '';
+  if(content.dates.length === 0){
+    el.innerHTML = '<div class="empty-note">No countdowns yet. Add one below.</div>';
+    return;
+  }
+  const now = new Date();
+  const withDiff = content.dates.map(d => {
+    const target = new Date(d.date + 'T00:00:00');
+    const diffDays = Math.ceil((target - now) / 86400000);
+    return Object.assign({}, d, { diffDays });
+  }).sort((a,b) => a.diffDays - b.diffDays);
+
+  withDiff.forEach((d, idx) => {
+    const card = document.createElement('div');
+    card.className = 'countdown-card' + (idx === 0 && d.diffDays >= 0 ? ' featured' : '');
+    let big, sub;
+    if(d.diffDays > 0){ big = d.diffDays + ' day' + (d.diffDays === 1 ? '' : 's'); sub = 'until ' + fmtDate(d.date); }
+    else if(d.diffDays === 0){ big = "It's today"; sub = fmtDate(d.date); }
+    else { big = Math.abs(d.diffDays) + ' day' + (Math.abs(d.diffDays) === 1 ? '' : 's') + ' ago'; sub = fmtDate(d.date); }
+    card.innerHTML = '<div class="lbl">' + escapeHtml(d.label) + '</div><div class="big">' + big + '</div><div class="sub">' + sub + '</div>';
+    if(window.editMode){
+      const del = document.createElement('button');
+      del.className = 'del-btn'; del.textContent = 'remove';
+      del.onclick = async () => { content.dates = content.dates.filter(x => x.id !== d.id); await save(); renderCountdowns(); };
+      card.appendChild(del);
+    }
+    el.appendChild(card);
+  });
+}
+
+document.getElementById('addCdBtn').addEventListener('click', async () => {
+  const label = document.getElementById('newCdLabel').value.trim();
+  const date = document.getElementById('newCdDate').value;
+  if(!label || !date) return;
+  content.dates.push({ id: uid(), label, date });
+  await save();
+  document.getElementById('newCdLabel').value = '';
+  document.getElementById('newCdDate').value = '';
+  renderCountdowns();
+});
+
+if(requireAuthOrRedirect()){
+  renderChrome('countdown');
+  (async () => { await load(); renderCountdowns(); })();
+}
+</script>
+</body>
+</html>
